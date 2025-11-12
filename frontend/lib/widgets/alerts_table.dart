@@ -18,13 +18,17 @@ class AlertsTable extends StatefulWidget {
   State<AlertsTable> createState() => _AlertsTableState();
 }
 
-class _AlertsTableState extends State<AlertsTable> {
+class _AlertsTableState extends State<AlertsTable>
+    with AutomaticKeepAliveClientMixin {
   final DatabaseService _dbService = DatabaseService();
   List<AlertModel> _alerts = [];
   Timer? _updateTimer;
 
   bool _isLoading = false;
   String? _error;
+
+  @override
+  bool get wantKeepAlive => true; // Mantener el estado al hacer scroll
 
   @override
   void initState() {
@@ -85,6 +89,7 @@ class _AlertsTableState extends State<AlertsTable> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Requerido para AutomaticKeepAliveClientMixin
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Padding(

@@ -28,6 +28,32 @@ class DatabaseService {
   // Timeout para requests (aumentado para dispositivos móviles)
   static const Duration _timeout = Duration(seconds: 30);
 
+  // ========== SISTEMA DE CACHE ==========
+  // Cache para alertas
+  List<AlertModel>? _alertsCache;
+  DateTime? _alertsCacheTime;
+  static const Duration _alertsCacheDuration = Duration(seconds: 10);
+
+  // Cache para datos de gráficas
+  final Map<String, Map<String, dynamic>> _chartDataCache = {};
+  final Map<String, DateTime> _chartDataCacheTime = {};
+  static const Duration _chartDataCacheDuration = Duration(seconds: 30);
+
+  /// Limpiar toda la cache
+  void clearCache() {
+    _alertsCache = null;
+    _alertsCacheTime = null;
+    _chartDataCache.clear();
+    _chartDataCacheTime.clear();
+    print('🧹 Cache limpiada');
+  }
+
+  /// Verificar si la cache es válida
+  bool _isCacheValid(DateTime? cacheTime, Duration duration) {
+    if (cacheTime == null) return false;
+    return DateTime.now().difference(cacheTime) < duration;
+  }
+
   /// Conectar al backend
   Future<void> connect() async {
     try {
@@ -136,8 +162,33 @@ class DatabaseService {
     String? tipoFilter,
     String? severidadFilter,
     String edificio = 'A',
+    bool forceRefresh = false,
   }) async {
     try {
+      // Verificar cache si no se fuerza la actualización
+      if (!forceRefresh &&
+          _isCacheValid(_alertsCacheTime, _alertsCacheDuration) &&
+          _alertsCache != null) {
+        print('📦 Usando cache de alertas');
+        var alerts = _alertsCache!;
+
+        // Aplicar filtros a la cache
+        if (pisoFilter != null &&
+            pisoFilter.isNotEmpty &&
+            pisoFilter != 'Todos') {
+          alerts = alerts.where((a) => a.piso == pisoFilter).toList();
+        }
+        if (severidadFilter != null && severidadFilter.isNotEmpty) {
+          final normalizedFilter = _normalizeSeveridad(severidadFilter);
+          alerts = alerts
+              .where(
+                  (a) => _normalizeSeveridad(a.severidad) == normalizedFilter)
+              .toList();
+        }
+
+        return alerts;
+      }
+
       // Construir URL con parámetros
       String url = '$_baseUrl/alerts/?edificio=$edificio&solo_activas=true';
 
@@ -152,7 +203,6 @@ class DatabaseService {
       }
 
       print('📥 Obteniendo alertas desde: $url');
-      print('⏱️ Timeout configurado: $_timeout');
 
       final response = await http
           .get(
@@ -162,10 +212,11 @@ class DatabaseService {
         _timeout,
         onTimeout: () {
           print('⏰ Timeout alcanzado después de $_timeout');
-          print('💡 Verifica que:');
-          print('   1. El backend esté corriendo en $_baseUrl');
-          print('   2. Tu dispositivo esté en la misma red WiFi');
-          print('   3. El firewall permita conexiones al puerto 8000');
+          // Si hay cache disponible, usarla aunque esté expirada
+          if (_alertsCache != null) {
+            print('📦 Usando cache expirada por timeout');
+            return http.Response(jsonEncode([]), 200);
+          }
           throw Exception('Timeout: No se pudo conectar al backend');
         },
       );
@@ -181,6 +232,11 @@ class DatabaseService {
             recomendacion: alert['recomendacion'] ?? 'Sin recomendación',
           );
         }).toList();
+
+        // Guardar en cache
+        _alertsCache = alerts;
+        _alertsCacheTime = DateTime.now();
+        print('💾 Alertas guardadas en cache');
 
         // Filtrar por severidad si se especificó
         if (severidadFilter != null && severidadFilter.isNotEmpty) {
@@ -337,8 +393,21 @@ class DatabaseService {
     int? piso,
     String edificio = 'A',
     int limit = 60,
+    bool forceRefresh = false,
   }) async {
     try {
+      // Construir clave de cache
+      final cacheKey = '${edificio}_${piso ?? "all"}_$limit';
+
+      // Verificar cache
+      if (!forceRefresh &&
+          _chartDataCache.containsKey(cacheKey) &&
+          _isCacheValid(
+              _chartDataCacheTime[cacheKey], _chartDataCacheDuration)) {
+        print('📦 Usando cache de datos de gráficas');
+        return _chartDataCache[cacheKey]!;
+      }
+
       String url =
           '$_baseUrl/sensor-data/chart?edificio=$edificio&limit=$limit';
 
@@ -348,12 +417,28 @@ class DatabaseService {
 
       print('📊 Obteniendo datos de gráficas: $url');
 
-      final response = await http.get(Uri.parse(url)).timeout(_timeout);
+      final response = await http.get(Uri.parse(url)).timeout(
+        _timeout,
+        onTimeout: () {
+          // Si hay cache disponible, usarla aunque esté expirada
+          if (_chartDataCache.containsKey(cacheKey)) {
+            print('📦 Usando cache expirada por timeout');
+            return http.Response(jsonEncode(_chartDataCache[cacheKey]), 200);
+          }
+          throw Exception('Timeout');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         print(
             '✅ Datos de gráficas obtenidos: ${data['data']?.length ?? 0} puntos');
+
+        // Guardar en cache
+        _chartDataCache[cacheKey] = data;
+        _chartDataCacheTime[cacheKey] = DateTime.now();
+        print('💾 Datos de gráficas guardados en cache');
+
         return data;
       } else {
         print('❌ Error obteniendo datos de gráficas: ${response.statusCode}');
@@ -361,6 +446,12 @@ class DatabaseService {
       }
     } catch (e) {
       print('❌ Error obteniendo datos de gráficas: $e');
+      // Si hay cache, usarla en caso de error
+      final cacheKey = '${edificio}_${piso ?? "all"}_$limit';
+      if (_chartDataCache.containsKey(cacheKey)) {
+        print('📦 Usando cache por error de red');
+        return _chartDataCache[cacheKey]!;
+      }
       return {'piso': piso ?? 'Todos', 'data': []};
     }
   }
