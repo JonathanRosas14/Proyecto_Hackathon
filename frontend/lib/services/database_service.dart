@@ -11,8 +11,8 @@ class DatabaseService {
 
   // URL del backend (cambiar según ambiente)
   // LOCAL: http://localhost:8000
-  // PRODUCCIÓN: https://tu-servidor.com
-  static String _baseUrl = 'http://localhost:8000';
+  // PRODUCCIÓN: https://proyecto-hackathon.onrender.com
+  static String _baseUrl = 'https://proyecto-hackathon.onrender.com';
 
   /// Establecer la URL base del backend (útil para diferentes plataformas)
   static void setBaseUrl(String url) {
@@ -172,7 +172,7 @@ class DatabaseService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final alerts = data.map((alert) {
+        var alerts = data.map((alert) {
           return AlertModel(
             timestamp: DateTime.parse(alert['timestamp']),
             piso: 'Piso ${alert['piso']}',
@@ -182,10 +182,36 @@ class DatabaseService {
           );
         }).toList();
 
+        // Filtrar por severidad si se especificó
+        if (severidadFilter != null && severidadFilter.isNotEmpty) {
+          print('🔍 Aplicando filtro de severidad: "$severidadFilter"');
+          print('🔍 Alertas antes de filtrar: ${alerts.length}');
+          print(
+              '🔍 Severidades disponibles: ${alerts.map((a) => a.severidad).toSet().toList()}');
+
+          // Normalizar el filtro de severidad para comparación
+          final normalizedFilter = _normalizeSeveridad(severidadFilter);
+
+          alerts = alerts.where((alert) {
+            final normalizedAlertSeveridad =
+                _normalizeSeveridad(alert.severidad);
+            final match = normalizedAlertSeveridad == normalizedFilter;
+
+            if (alerts.indexOf(alert) < 3) {
+              print(
+                  '🔍 Comparando: "${alert.severidad}" (normalizado: "$normalizedAlertSeveridad") vs filtro "$severidadFilter" (normalizado: "$normalizedFilter") = $match');
+            }
+
+            return match;
+          }).toList();
+
+          print('🔍 Alertas después de filtrar: ${alerts.length}');
+        }
+
         // Ordenar por timestamp descendente
         alerts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-        print('✅ Obtenidas ${alerts.length} alertas');
+        print('✅ Obtenidas ${alerts.length} alertas (después de filtros)');
         return alerts;
       } else {
         print('❌ Error HTTP ${response.statusCode}: ${response.body}');
@@ -341,17 +367,55 @@ class DatabaseService {
 
   // ========== HELPERS ==========
 
-  /// Mapear severidad del backend (low/medium/high) a UI (OK/Bajo/Medio/Alto/Crítico)
+  /// Mapear severidad del backend a UI
+  /// Backend: low/medium/high → UI: OK/Informativa/Media/Crítica
   String _mapSeveridad(String backendSeveridad) {
     switch (backendSeveridad.toLowerCase()) {
       case 'low':
-        return 'Bajo';
+      case 'bajo':
+        return 'OK';
       case 'medium':
-        return 'Medio';
+      case 'medio':
+        return 'Media';
       case 'high':
-        return 'Crítico';
+      case 'alto':
+        return 'Crítica';
+      case 'informativa':
+      case 'info':
+        return 'Informativa';
       default:
-        return backendSeveridad;
+        // Si viene un valor desconocido, capitalizarlo y devolverlo
+        return backendSeveridad.isEmpty
+            ? 'Desconocido'
+            : backendSeveridad[0].toUpperCase() +
+                backendSeveridad.substring(1).toLowerCase();
+    }
+  }
+
+  /// Normalizar severidad para comparación consistente
+  /// Convierte cualquier variante a una forma estándar
+  String _normalizeSeveridad(String severidad) {
+    switch (severidad.toLowerCase().trim()) {
+      case 'low':
+      case 'bajo':
+      case 'ok':
+        return 'ok';
+      case 'informativa':
+      case 'info':
+      case 'information':
+        return 'informativa';
+      case 'medium':
+      case 'medio':
+      case 'media':
+        return 'media';
+      case 'high':
+      case 'alto':
+      case 'crítica':
+      case 'critica':
+      case 'critical':
+        return 'critica';
+      default:
+        return severidad.toLowerCase().trim();
     }
   }
 

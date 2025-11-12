@@ -59,10 +59,9 @@ class _AlertsSectionState extends State<AlertsSection> {
             runSpacing: 12,
             children: [
               _buildFilterChip('OK', isFloor: false),
-              _buildFilterChip('Informativo', isFloor: false),
-              _buildFilterChip('Medio', isFloor: false),
-              _buildFilterChip('Crítico', isFloor: false),
-              _buildFilterChip('General', isFloor: false),
+              _buildFilterChip('Informativa', isFloor: false),
+              _buildFilterChip('Media', isFloor: false),
+              _buildFilterChip('Crítica', isFloor: false),
             ],
           ),
         ),
@@ -73,9 +72,7 @@ class _AlertsSectionState extends State<AlertsSection> {
   Widget _buildFilterChip(String label, {required bool isFloor}) {
     final bool isSelected = isFloor
         ? (label == 'Todos' ? selectedFloor == null : selectedFloor == label)
-        : (label == 'General'
-            ? selectedAlertLevel == null
-            : selectedAlertLevel == label);
+        : selectedAlertLevel == label;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -90,12 +87,8 @@ class _AlertsSectionState extends State<AlertsSection> {
                 selectedFloor = selectedFloor == label ? null : label;
               }
             } else {
-              // Si selecciona "General", limpia el filtro
-              if (label == 'General') {
-                selectedAlertLevel = null;
-              } else {
-                selectedAlertLevel = selectedAlertLevel == label ? null : label;
-              }
+              // Toggle: si está seleccionado, deseleccionarlo; si no, seleccionarlo
+              selectedAlertLevel = selectedAlertLevel == label ? null : label;
             }
           });
           _notifyFilterChange();
