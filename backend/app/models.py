@@ -4,7 +4,7 @@ from app.database import Base
 
 class SensorData(Base):
     """Modelo para almacenar datos de sensores por piso"""
-    tablename = "sensor_data"
+    __tablename__ = "sensor_data"
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
@@ -14,13 +14,13 @@ class SensorData(Base):
     humedad_pct = Column(Float, nullable=False)
     energia_kw = Column(Float, nullable=False)
     
-    def repr(self):
+    def __repr__(self):
         return f"<SensorData(edificio={self.edificio}, piso={self.piso}, temp={self.temp_c}°C)>"
 
 
 class Alert(Base):
     """Modelo para almacenar alertas generadas"""
-    tablename = "alerts"
+    __tablename__ = "alerts"
 
     id = Column(Integer, primary_key=True, index=True)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
@@ -32,5 +32,5 @@ class Alert(Base):
     recomendacion = Column(String, nullable=True)
     resuelta = Column(Boolean, default=False)
     
-    def repr(self):
+    def __repr__(self):
         return f"<Alert(tipo={self.tipo}, piso={self.piso}, severidad={self.severidad})>"
