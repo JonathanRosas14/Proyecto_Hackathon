@@ -12,26 +12,57 @@ class DatabaseService {
   // URL del backend (cambiar según ambiente)
   // LOCAL: http://localhost:8000
   // PRODUCCIÓN: https://tu-servidor.com
-  static const String _baseUrl = 'http://localhost:8000';
+  static String _baseUrl = 'http://localhost:8000';
 
-  // Timeout para requests
-  static const Duration _timeout = Duration(seconds: 10);
+  /// Establecer la URL base del backend (útil para diferentes plataformas)
+  static void setBaseUrl(String url) {
+    _baseUrl = url;
+    print('🔧 URL del backend actualizada: $url');
+  }
+
+  /// Obtener la URL base del backend
+  static String getBaseUrl() {
+    return _baseUrl;
+  }
+
+  // Timeout para requests (aumentado para dispositivos móviles)
+  static const Duration _timeout = Duration(seconds: 30);
 
   /// Conectar al backend
   Future<void> connect() async {
     try {
-      final response = await http.get(
+      print('🔄 Intentando conectar a: $_baseUrl/health');
+      print('⏱️ Timeout: $_timeout');
+
+      final response = await http
+          .get(
         Uri.parse('$_baseUrl/health'),
-      ).timeout(_timeout);
+      )
+          .timeout(
+        _timeout,
+        onTimeout: () {
+          print('⏰ Timeout al conectar después de $_timeout');
+          print('💡 Sugerencias:');
+          print('   • Verifica que el backend esté corriendo');
+          print('   • Verifica la URL: $_baseUrl');
+          print('   • Si es dispositivo físico, usa la IP de tu PC');
+          print('   • Si es emulador Android, usa 10.0.2.2:8000');
+          throw Exception('Timeout de conexión');
+        },
+      );
 
       if (response.statusCode == 200) {
-        print('✅ Conectado al backend: $_baseUrl');
+        print('✅ Conectado exitosamente al backend: $_baseUrl');
+        final body = jsonDecode(response.body);
+        print('📊 Backend status: ${body['status']}');
       } else {
         print('⚠️ Backend respondió con status: ${response.statusCode}');
+        print('📄 Body: ${response.body}');
       }
     } catch (e) {
       print('❌ Error conectando al backend: $e');
-      throw Exception('No se puede conectar al backend');
+      print('🔍 URL intentada: $_baseUrl');
+      rethrow;
     }
   }
 
@@ -77,11 +108,13 @@ class DatabaseService {
 
       print('📤 Enviando lectura: $payload');
 
-      final response = await http.post(
-        Uri.parse('$_baseUrl/sensor-data/'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(_timeout);
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/sensor-data/'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -108,7 +141,9 @@ class DatabaseService {
       // Construir URL con parámetros
       String url = '$_baseUrl/alerts/?edificio=$edificio&solo_activas=true';
 
-      if (pisoFilter != null && pisoFilter.isNotEmpty && pisoFilter != 'Todos') {
+      if (pisoFilter != null &&
+          pisoFilter.isNotEmpty &&
+          pisoFilter != 'Todos') {
         // Convertir "Piso 1" -> 1
         final pisoNum = _extractPisoNumber(pisoFilter);
         if (pisoNum != null) {
@@ -116,11 +151,24 @@ class DatabaseService {
         }
       }
 
-      print('📥 Obteniendo alertas: $url');
+      print('📥 Obteniendo alertas desde: $url');
+      print('⏱️ Timeout configurado: $_timeout');
 
-      final response = await http.get(
+      final response = await http
+          .get(
         Uri.parse(url),
-      ).timeout(_timeout);
+      )
+          .timeout(
+        _timeout,
+        onTimeout: () {
+          print('⏰ Timeout alcanzado después de $_timeout');
+          print('💡 Verifica que:');
+          print('   1. El backend esté corriendo en $_baseUrl');
+          print('   2. Tu dispositivo esté en la misma red WiFi');
+          print('   3. El firewall permita conexiones al puerto 8000');
+          throw Exception('Timeout: No se pudo conectar al backend');
+        },
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -140,11 +188,16 @@ class DatabaseService {
         print('✅ Obtenidas ${alerts.length} alertas');
         return alerts;
       } else {
-        print('❌ Error ${response.statusCode}: ${response.body}');
+        print('❌ Error HTTP ${response.statusCode}: ${response.body}');
         return [];
       }
-    } catch (e) {
+    } on Exception catch (e) {
       print('❌ Error obteniendo alertas: $e');
+      print('🔍 Backend URL: $_baseUrl');
+      return [];
+    } catch (e) {
+      print('❌ Error inesperado: $e');
+      print('🔍 Tipo: ${e.runtimeType}');
       return [];
     }
   }
@@ -181,7 +234,7 @@ class DatabaseService {
     try {
       final alerts = await getAlerts(edificio: edificio);
       final severidades = alerts.map((a) => a.severidad).toSet().toList();
-      
+
       // Ordenar por severidad (de mayor a menor)
       final severidadOrder = [
         'Crítico',
@@ -198,7 +251,7 @@ class DatabaseService {
         if (indexB == -1) indexB = 999;
         return indexA.compareTo(indexB);
       });
-      
+
       return severidades;
     } catch (e) {
       print('❌ Error obteniendo severidades: $e');
@@ -212,9 +265,11 @@ class DatabaseService {
     String edificio = 'A',
   }) async {
     try {
-      final response = await http.get(
-        Uri.parse('$_baseUrl/dashboard/$piso?edificio=$edificio'),
-      ).timeout(_timeout);
+      final response = await http
+          .get(
+            Uri.parse('$_baseUrl/dashboard/$piso?edificio=$edificio'),
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
@@ -231,9 +286,11 @@ class DatabaseService {
   /// Resolver una alerta
   Future<bool> resolveAlert(int alertId) async {
     try {
-      final response = await http.put(
-        Uri.parse('$_baseUrl/alerts/$alertId/resolver'),
-      ).timeout(_timeout);
+      final response = await http
+          .put(
+            Uri.parse('$_baseUrl/alerts/$alertId/resolver'),
+          )
+          .timeout(_timeout);
 
       if (response.statusCode == 200) {
         print('✅ Alerta $alertId resuelta');
@@ -272,3 +329,4 @@ class DatabaseService {
       return null;
     }
   }
+}
