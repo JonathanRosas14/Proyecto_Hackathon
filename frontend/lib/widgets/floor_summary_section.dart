@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
 class FloorSummarySection extends StatelessWidget {
+  final String selectedBuilding;
   final int? selectedFloor;
   final Function(int?) onFloorSelected;
 
   const FloorSummarySection({
     super.key,
+    required this.selectedBuilding,
     required this.selectedFloor,
     required this.onFloorSelected,
   });

@@ -14,6 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // Usar ValueNotifier para actualizaciones más granulares
+  final ValueNotifier<String> _selectedBuilding = ValueNotifier<String>('A');
   final ValueNotifier<String?> _selectedPiso = ValueNotifier<String?>(null);
   final ValueNotifier<String?> _selectedSeveridad =
       ValueNotifier<String?>(null);
@@ -21,10 +22,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _selectedBuilding.dispose();
     _selectedPiso.dispose();
     _selectedSeveridad.dispose();
     _selectedFloor.dispose();
     super.dispose();
+  }
+
+  void _handleBuildingChange(String building) {
+    _selectedBuilding.value = building;
+    // Reset filters when building changes
+    _selectedPiso.value = null;
+    _selectedSeveridad.value = null;
+    _selectedFloor.value = null;
   }
 
   void _handleFilterChange(String? piso, String? severidad) {
@@ -42,15 +52,30 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            const AppHeader(),
+            ValueListenableBuilder<String>(
+              valueListenable: _selectedBuilding,
+              builder: (context, building, _) {
+                return AppHeader(
+                  selectedBuilding: building,
+                  onBuildingChanged: _handleBuildingChange,
+                );
+              },
+            ),
             Expanded(
               child: SingleChildScrollView(
-                child: _HomeContent(
-                  selectedFloor: _selectedFloor,
-                  selectedPiso: _selectedPiso,
-                  selectedSeveridad: _selectedSeveridad,
-                  onFloorSelected: _handleFloorSelection,
-                  onFilterChanged: _handleFilterChange,
+                child: ValueListenableBuilder<String>(
+                  valueListenable: _selectedBuilding,
+                  builder: (context, building, _) {
+                    return _HomeContent(
+                      key: ValueKey('content_$building'),
+                      selectedBuilding: building,
+                      selectedFloor: _selectedFloor,
+                      selectedPiso: _selectedPiso,
+                      selectedSeveridad: _selectedSeveridad,
+                      onFloorSelected: _handleFloorSelection,
+                      onFilterChanged: _handleFilterChange,
+                    );
+                  },
                 ),
               ),
             ),
@@ -63,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 /// Widget separado para evitar reconstruir todo cuando cambian los filtros
 class _HomeContent extends StatelessWidget {
+  final String selectedBuilding;
   final ValueNotifier<int?> selectedFloor;
   final ValueNotifier<String?> selectedPiso;
   final ValueNotifier<String?> selectedSeveridad;
@@ -70,6 +96,8 @@ class _HomeContent extends StatelessWidget {
   final Function(String?, String?) onFilterChanged;
 
   const _HomeContent({
+    super.key,
+    required this.selectedBuilding,
     required this.selectedFloor,
     required this.selectedPiso,
     required this.selectedSeveridad,
@@ -94,13 +122,17 @@ class _HomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          // Building Overview Title - Widget const
-          _BuildingOverviewTitle(screenWidth: screenWidth),
+          // Building Overview Title
+          _BuildingOverviewTitle(
+            screenWidth: screenWidth,
+            selectedBuilding: selectedBuilding,
+          ),
           // Floor Summary Section
           ValueListenableBuilder<int?>(
             valueListenable: selectedFloor,
             builder: (context, floor, _) {
               return FloorSummarySection(
+                selectedBuilding: selectedBuilding,
                 selectedFloor: floor,
                 onFloorSelected: onFloorSelected,
               );
@@ -111,7 +143,8 @@ class _HomeContent extends StatelessWidget {
             valueListenable: selectedFloor,
             builder: (context, floor, _) {
               return TrendAnalysisSection(
-                key: ValueKey('trend_$floor'),
+                key: ValueKey('trend_${selectedBuilding}_$floor'),
+                selectedBuilding: selectedBuilding,
                 selectedFloor: floor,
               );
             },
@@ -128,7 +161,9 @@ class _HomeContent extends StatelessWidget {
                 valueListenable: selectedSeveridad,
                 builder: (context, severidad, _) {
                   return AlertsTable(
-                    key: ValueKey('alerts_${piso}_$severidad'),
+                    key: ValueKey(
+                        'alerts_${selectedBuilding}_${piso}_$severidad'),
+                    selectedBuilding: selectedBuilding,
                     pisoFilter: piso,
                     severidadFilter: severidad,
                   );
@@ -143,18 +178,22 @@ class _HomeContent extends StatelessWidget {
   }
 }
 
-/// Widget const para el título que nunca cambia
+/// Widget para el título con el edificio seleccionado
 class _BuildingOverviewTitle extends StatelessWidget {
   final double screenWidth;
+  final String selectedBuilding;
 
-  const _BuildingOverviewTitle({required this.screenWidth});
+  const _BuildingOverviewTitle({
+    required this.screenWidth,
+    required this.selectedBuilding,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Text(
-        'Vista General del Edificio',
+        'Vista General del Edificio $selectedBuilding',
         style: TextStyle(
           fontSize: screenWidth > 600 ? 32 : 24,
           fontWeight: FontWeight.bold,
