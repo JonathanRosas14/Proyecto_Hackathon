@@ -4,7 +4,8 @@ FROM python:3.11-slim
 # Evitar buffers en la salida y mantener pip comportamiento compatible
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app
+## Poner el contexto de trabajo en la carpeta del backend
+WORKDIR /app/backend
 
 # Instalar dependencias del sistema necesarias para paquetes como psycopg2 y compilación
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,12 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-# Copiar requirements y luego instalar dependencias Python
-COPY requirements.txt ./
+# Copiar solo los requirements del backend y luego instalar dependencias Python
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --upgrade pip setuptools wheel && pip install -r requirements.txt
 
-# Copiar el código de la aplicación
-COPY . /app
+# Copiar el código del backend dentro del contenedor
+COPY backend/ ./
 
 # Exponer el puerto por defecto (Render provee $PORT en tiempo de ejecución)
 EXPOSE 8000
