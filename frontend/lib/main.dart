@@ -1,7 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import 'screens/home_screen.dart';
+import 'services/database_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Configurar URL del backend según la plataforma
+  String backendUrl;
+
+  if (kIsWeb) {
+    // Web: usar localhost
+    backendUrl = 'http://127.0.0.1:8000';
+  } else if (Platform.isAndroid) {
+    // Android con ADB reverse (ejecuta: adb reverse tcp:8000 tcp:8000)
+    backendUrl = 'http://localhost:8000'; // Para emulador con adb reverse
+
+    // Alternativas sin adb reverse:
+    // backendUrl = 'http://10.0.2.2:8000'; // Para emulador (puede no funcionar)
+    // backendUrl = 'http://192.168.1.XXX:8000'; // Para dispositivo físico
+  } else if (Platform.isIOS) {
+    // iOS: localhost funciona en simulador
+    backendUrl = 'http://127.0.0.1:8000'; // Para simulador
+    // backendUrl = 'http://192.168.1.XXX:8000'; // Para dispositivo físico
+  } else {
+    // Windows, macOS, Linux
+    backendUrl = 'http://127.0.0.1:8000';
+  }
+
+  DatabaseService.setBaseUrl(backendUrl);
+  print('🌐 Backend URL configurada: $backendUrl');
+
+  // Intentar conectar al backend
+  try {
+    await DatabaseService().connect();
+    print('✅ Conectado al backend exitosamente');
+  } catch (e) {
+    print('⚠️ No se pudo conectar al backend: $e');
+    print('La app continuará, pero puede haber errores al cargar datos');
+  }
+
   runApp(const EcoMonitorApp());
 }
 
