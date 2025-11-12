@@ -6,12 +6,16 @@ class TrendChartCard extends StatefulWidget {
   final String title;
   final String value;
   final String subtitle;
+  final List<dynamic> chartData;
+  final String dataKey;
 
   const TrendChartCard({
     super.key,
     required this.title,
     required this.value,
     required this.subtitle,
+    required this.chartData,
+    required this.dataKey,
   });
 
   @override
@@ -87,60 +91,45 @@ class _TrendChartCardState extends State<TrendChartCard> {
         ),
         const SizedBox(height: 8),
         // Time labels
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: const [
-            Text(
-              '10 AM',
-              style: TextStyle(
-                color: Color(0xFF93c5c5),
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '11 AM',
-              style: TextStyle(
-                color: Color(0xFF93c5c5),
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '12 PM',
-              style: TextStyle(
-                color: Color(0xFF93c5c5),
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              '1 PM',
-              style: TextStyle(
-                color: Color(0xFF93c5c5),
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
+        _buildTimeLabels(),
       ],
     );
   }
 
   Widget _buildChart() {
+    final spots = _generateSpotsFromData();
+
+    if (spots.isEmpty) {
+      return const Center(
+        child: Text(
+          'Sin datos disponibles',
+          style: TextStyle(
+            color: Color(0xFF93c5c5),
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+
+    // Calcular min y max para el eje Y
+    final values = spots.map((s) => s.y).toList();
+    final minY = values.reduce(math.min);
+    final maxY = values.reduce(math.max);
+    final range = maxY - minY;
+    final padding = range * 0.2; // 20% de padding
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(show: false),
         titlesData: FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
         minX: 0,
-        maxX: 11,
-        minY: 0,
-        maxY: 100,
+        maxX: spots.length > 1 ? (spots.length - 1).toDouble() : 1,
+        minY: minY - padding,
+        maxY: maxY + padding,
         lineBarsData: [
           LineChartBarData(
-            spots: _generateRandomSpots(),
+            spots: spots,
             isCurved: true,
             color: const Color(0xFF4ecca3),
             barWidth: 3,
@@ -163,10 +152,71 @@ class _TrendChartCardState extends State<TrendChartCard> {
     );
   }
 
-  List<FlSpot> _generateRandomSpots() {
-    final random = math.Random(42); // Fixed seed for consistency
-    return List.generate(12, (index) {
-      return FlSpot(index.toDouble(), 20 + random.nextDouble() * 60);
-    });
+  List<FlSpot> _generateSpotsFromData() {
+    if (widget.chartData.isEmpty) {
+      return [];
+    }
+
+    final spots = <FlSpot>[];
+
+    for (int i = 0; i < widget.chartData.length; i++) {
+      final data = widget.chartData[i];
+      final value = data[widget.dataKey];
+
+      if (value != null) {
+        spots.add(FlSpot(i.toDouble(), value.toDouble()));
+      }
+    }
+
+    return spots;
+  }
+
+  Widget _buildTimeLabels() {
+    if (widget.chartData.isEmpty || widget.chartData.length < 4) {
+      return const SizedBox.shrink();
+    }
+
+    // Mostrar 4 etiquetas equidistantes
+    final totalPoints = widget.chartData.length;
+    final indices = [
+      0,
+      totalPoints ~/ 3,
+      (totalPoints * 2) ~/ 3,
+      totalPoints - 1,
+    ];
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: indices.map((index) {
+        if (index >= widget.chartData.length) {
+          return const SizedBox.shrink();
+        }
+
+        final data = widget.chartData[index];
+        final timestamp = data['timestamp'] as String?;
+
+        String timeLabel = '--';
+        if (timestamp != null) {
+          try {
+            final dateTime = DateTime.parse(timestamp);
+            final hour = dateTime.hour;
+            final minute = dateTime.minute;
+            timeLabel =
+                '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+          } catch (e) {
+            timeLabel = '--';
+          }
+        }
+
+        return Text(
+          timeLabel,
+          style: const TextStyle(
+            color: Color(0xFF93c5c5),
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+      }).toList(),
+    );
   }
 }

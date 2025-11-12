@@ -305,6 +305,40 @@ class DatabaseService {
     }
   }
 
+  /// Obtener datos para gráficas de tendencias
+  /// Si piso es null, devuelve el promedio de todos los pisos
+  Future<Map<String, dynamic>> getChartData({
+    int? piso,
+    String edificio = 'A',
+    int limit = 60,
+  }) async {
+    try {
+      String url =
+          '$_baseUrl/sensor-data/chart?edificio=$edificio&limit=$limit';
+
+      if (piso != null) {
+        url += '&piso=$piso';
+      }
+
+      print('📊 Obteniendo datos de gráficas: $url');
+
+      final response = await http.get(Uri.parse(url)).timeout(_timeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print(
+            '✅ Datos de gráficas obtenidos: ${data['data']?.length ?? 0} puntos');
+        return data;
+      } else {
+        print('❌ Error obteniendo datos de gráficas: ${response.statusCode}');
+        return {'piso': piso ?? 'Todos', 'data': []};
+      }
+    } catch (e) {
+      print('❌ Error obteniendo datos de gráficas: $e');
+      return {'piso': piso ?? 'Todos', 'data': []};
+    }
+  }
+
   // ========== HELPERS ==========
 
   /// Mapear severidad del backend (low/medium/high) a UI (OK/Bajo/Medio/Alto/Crítico)

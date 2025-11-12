@@ -2,25 +2,73 @@ import 'package:flutter/material.dart';
 import 'trend_chart_card.dart';
 
 class TrendAnalysisSection extends StatelessWidget {
-  const TrendAnalysisSection({super.key});
+  final Map<String, dynamic> chartData;
+  final int? selectedFloor;
+
+  const TrendAnalysisSection({
+    super.key,
+    required this.chartData,
+    required this.selectedFloor,
+  });
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final data = chartData['data'] as List? ?? [];
+
+    // Calcular valores actuales (último registro)
+    String tempValue = '-- °C';
+    String humidityValue = '-- %';
+    String energyValue = '-- kWh';
+
+    if (data.isNotEmpty) {
+      final lastData = data.last;
+      tempValue = '${lastData['temp_c']?.toStringAsFixed(1) ?? '--'}°C';
+      humidityValue = '${lastData['humedad_pct']?.toStringAsFixed(1) ?? '--'}%';
+      energyValue = '${lastData['energia_kw']?.toStringAsFixed(1) ?? '--'} kWh';
+    }
+
+    final floorText =
+        selectedFloor == null ? 'Todos los pisos' : 'Piso $selectedFloor';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-          child: Text(
-            'Análisis de Tendencias',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.3,
-            ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: Row(
+            children: [
+              const Text(
+                'Análisis de Tendencias',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1a5555),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF4ecca3),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  floorText,
+                  style: const TextStyle(
+                    color: Color(0xFF4ecca3),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         Padding(
@@ -28,28 +76,34 @@ class TrendAnalysisSection extends StatelessWidget {
           child: screenWidth > 1200
               ? Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Expanded(
                       child: TrendChartCard(
                         title: 'Temperatura',
-                        value: '22°C',
-                        subtitle: 'Últimas 4 horas',
+                        value: tempValue,
+                        subtitle: 'Últimos 60 registros',
+                        chartData: data,
+                        dataKey: 'temp_c',
                       ),
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: TrendChartCard(
                         title: 'Humedad',
-                        value: '55%',
-                        subtitle: 'Últimas 4 horas',
+                        value: humidityValue,
+                        subtitle: 'Últimos 60 registros',
+                        chartData: data,
+                        dataKey: 'humedad_pct',
                       ),
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: TrendChartCard(
                         title: 'Energía',
-                        value: '1200 kWh',
-                        subtitle: 'Últimas 4 horas',
+                        value: energyValue,
+                        subtitle: 'Últimos 60 registros',
+                        chartData: data,
+                        dataKey: 'energia_kw',
                       ),
                     ),
                   ],
@@ -59,50 +113,62 @@ class TrendAnalysisSection extends StatelessWidget {
                       children: [
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
+                          children: [
                             Expanded(
                               child: TrendChartCard(
                                 title: 'Temperatura',
-                                value: '22°C',
-                                subtitle: 'Últimas 4 horas',
+                                value: tempValue,
+                                subtitle: 'Últimos 60 registros',
+                                chartData: data,
+                                dataKey: 'temp_c',
                               ),
                             ),
-                            SizedBox(width: 16),
+                            const SizedBox(width: 16),
                             Expanded(
                               child: TrendChartCard(
                                 title: 'Humedad',
-                                value: '55%',
-                                subtitle: 'Últimas 4 horas',
+                                value: humidityValue,
+                                subtitle: 'Últimos 60 registros',
+                                chartData: data,
+                                dataKey: 'humedad_pct',
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 16),
-                        const TrendChartCard(
+                        TrendChartCard(
                           title: 'Energía',
-                          value: '1200 kWh',
-                          subtitle: 'Últimas 4 horas',
+                          value: energyValue,
+                          subtitle: 'Últimos 60 registros',
+                          chartData: data,
+                          dataKey: 'energia_kw',
                         ),
                       ],
                     )
                   : Column(
-                      children: const [
+                      children: [
                         TrendChartCard(
                           title: 'Temperatura',
-                          value: '22°C',
-                          subtitle: 'Últimas 4 horas',
+                          value: tempValue,
+                          subtitle: 'Últimos 60 registros',
+                          chartData: data,
+                          dataKey: 'temp_c',
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         TrendChartCard(
                           title: 'Humedad',
-                          value: '55%',
-                          subtitle: 'Últimas 4 horas',
+                          value: humidityValue,
+                          subtitle: 'Últimos 60 registros',
+                          chartData: data,
+                          dataKey: 'humedad_pct',
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         TrendChartCard(
                           title: 'Energía',
-                          value: '1200 kWh',
-                          subtitle: 'Últimas 4 horas',
+                          value: energyValue,
+                          subtitle: 'Últimos 60 registros',
+                          chartData: data,
+                          dataKey: 'energia_kw',
                         ),
                       ],
                     ),

@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
 class FloorSummarySection extends StatelessWidget {
-  const FloorSummarySection({super.key});
+  final int? selectedFloor;
+  final Function(int?) onFloorSelected;
+
+  const FloorSummarySection({
+    super.key,
+    required this.selectedFloor,
+    required this.onFloorSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,19 +36,33 @@ class FloorSummarySection extends StatelessWidget {
               ? Column(
                   children: [
                     _buildFloorCard(
+                      context,
+                      'Todos',
+                      null,
+                      'Promedio',
+                      const Color(0xFF93c5c5),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildFloorCard(
+                      context,
                       'Piso 1',
+                      1,
                       'OK',
                       const Color(0xFF4ecca3),
                     ),
                     const SizedBox(height: 16),
                     _buildFloorCard(
+                      context,
                       'Piso 2',
+                      2,
                       'Informativo',
                       const Color(0xFFffa726),
                     ),
                     const SizedBox(height: 16),
                     _buildFloorCard(
+                      context,
                       'Piso 3',
+                      3,
                       'Medio',
                       const Color(0xFFf06292),
                     ),
@@ -51,7 +72,19 @@ class FloorSummarySection extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _buildFloorCard(
+                        context,
+                        'Todos',
+                        null,
+                        'Promedio',
+                        const Color(0xFF93c5c5),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildFloorCard(
+                        context,
                         'Piso 1',
+                        1,
                         'OK',
                         const Color(0xFF4ecca3),
                       ),
@@ -59,7 +92,9 @@ class FloorSummarySection extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildFloorCard(
+                        context,
                         'Piso 2',
+                        2,
                         'Informativo',
                         const Color(0xFFffa726),
                       ),
@@ -67,7 +102,9 @@ class FloorSummarySection extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: _buildFloorCard(
+                        context,
                         'Piso 3',
+                        3,
                         'Medio',
                         const Color(0xFFf06292),
                       ),
@@ -79,14 +116,21 @@ class FloorSummarySection extends StatelessWidget {
     );
   }
 
-  Widget _buildFloorCard(String title, String status, Color statusColor) {
+  Widget _buildFloorCard(
+    BuildContext context,
+    String title,
+    int? floorNumber,
+    String status,
+    Color statusColor,
+  ) {
+    final isSelected = selectedFloor == floorNumber;
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: InkWell(
         onTap: () {
-          print('Clickeado: $title');
+          onFloorSelected(floorNumber);
         },
-        onHover: (hovering) {},
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -94,7 +138,7 @@ class FloorSummarySection extends StatelessWidget {
             color: const Color(0xFF1a5555),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: Colors.transparent,
+              color: isSelected ? const Color(0xFF4ecca3) : Colors.transparent,
               width: 2,
             ),
           ),
