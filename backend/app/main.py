@@ -80,6 +80,16 @@ def get_sensor_by_floor(
     """Obtener datos de un piso específico"""
     return crud.get_sensor_data(db, edificio, piso, limit)
 
+@app.get("/sensor-data/piso/{piso}", response_model=List[schemas.SensorDataResponse])
+def get_sensor_by_floor(
+    piso: int,
+    edificio: str = "A",
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Obtener datos de un piso específico"""
+    return crud.get_sensor_data(db, edificio, piso, limit)
+
 
 # ========== PREDICTION ENDPOINTS ==========
 
@@ -220,6 +230,66 @@ def get_dashboard_data(
     }
 
 
-if name == "main":
+@app.get("/sensor-data/chart")
+def get_chart_data(
+    edificio: str = "A",
+    piso: Optional[int] = None,
+    limit: int = 60,
+    db: Session = Depends(get_db)
+):
+    """
+    Obtener datos para gráficas.
+    Si piso es None, retorna el promedio de todos los pisos.
+    """
+    from sqlalchemy import func
+    
+    if piso is None:
+        # Promedio de todos los pisos
+        query = db.query(
+            models.SensorData.timestamp,
+            func.avg(models.SensorData.temp_c).label('temp_c'),
+            func.avg(models.SensorData.humedad_pct).label('humedad_pct'),
+            func.avg(models.SensorData.energia_kw).label('energia_kw')
+        ).filter(
+            models.SensorData.edificio == edificio
+        ).group_by(
+            models.SensorData.timestamp
+        ).order_by(
+            models.SensorData.timestamp.desc()
+        ).limit(limit)
+        
+        results = query.all()
+        
+        return {
+            "piso": "Todos",
+            "data": [
+                {
+                    "timestamp": r.timestamp.isoformat(),
+                    "temp_c": round(float(r.temp_c), 2),
+                    "humedad_pct": round(float(r.humedad_pct), 2),
+                    "energia_kw": round(float(r.energia_kw), 2)
+                }
+                for r in reversed(results)
+            ]
+        }
+    else:
+        # Datos de un piso específico
+        data = crud.get_sensor_data(db, edificio, piso, limit)
+        
+        return {
+            "piso": piso,
+            "data": [
+                {
+                    "timestamp": d.timestamp.isoformat(),
+                    "temp_c": round(d.temp_c, 2),
+                    "humedad_pct": round(d.humedad_pct, 2),
+                    "energia_kw": round(d.energia_kw, 2)
+                }
+                for d in reversed(data)
+            ]
+        }
+
+
+if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,7 +1,39 @@
 import 'package:flutter/material.dart';
+// import 'package:flutter/foundation.dart' show kIsWeb;
+// import 'dart:io' show Platform;
 import 'screens/home_screen.dart';
+import 'services/database_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Configurar URL del backend - usar Render en producción
+  String backendUrl = 'https://proyecto-hackathon.onrender.com';
+
+  // Descomentar para desarrollo local:
+  // if (kIsWeb) {
+  //   backendUrl = 'http://127.0.0.1:8000';
+  // } else if (Platform.isAndroid) {
+  //   backendUrl = 'http://localhost:8000'; // Para emulador con adb reverse
+  //   // backendUrl = 'http://10.0.2.2:8000'; // Para emulador sin adb reverse
+  // } else if (Platform.isIOS) {
+  //   backendUrl = 'http://127.0.0.1:8000'; // Para simulador
+  // } else {
+  //   backendUrl = 'http://127.0.0.1:8000'; // Windows, macOS, Linux
+  // }
+
+  DatabaseService.setBaseUrl(backendUrl);
+  print('🌐 Backend URL configurada: $backendUrl');
+
+  // Intentar conectar al backend
+  try {
+    await DatabaseService().connect();
+    print('✅ Conectado al backend exitosamente');
+  } catch (e) {
+    print('⚠️ No se pudo conectar al backend: $e');
+    print('La app continuará, pero puede haber errores al cargar datos');
+  }
+
   runApp(const EcoMonitorApp());
 }
 
