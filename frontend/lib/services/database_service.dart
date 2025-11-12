@@ -11,8 +11,8 @@ class DatabaseService {
 
   // URL del backend (cambiar según ambiente)
   // LOCAL: http://localhost:8000
-  // PRODUCCIÓN: https://tu-servidor.com
-  static String _baseUrl = 'http://localhost:8000';
+  // PRODUCCIÓN: https://proyecto-hackathon.onrender.com
+  static String _baseUrl = 'https://proyecto-hackathon.onrender.com';
 
   /// Establecer la URL base del backend (útil para diferentes plataformas)
   static void setBaseUrl(String url) {
@@ -27,6 +27,32 @@ class DatabaseService {
 
   // Timeout para requests (aumentado para dispositivos móviles)
   static const Duration _timeout = Duration(seconds: 30);
+
+  // ========== SISTEMA DE CACHE ==========
+  // Cache para alertas
+  List<AlertModel>? _alertsCache;
+  DateTime? _alertsCacheTime;
+  static const Duration _alertsCacheDuration = Duration(seconds: 10);
+
+  // Cache para datos de gráficas
+  final Map<String, Map<String, dynamic>> _chartDataCache = {};
+  final Map<String, DateTime> _chartDataCacheTime = {};
+  static const Duration _chartDataCacheDuration = Duration(seconds: 30);
+
+  /// Limpiar toda la cache
+  void clearCache() {
+    _alertsCache = null;
+    _alertsCacheTime = null;
+    _chartDataCache.clear();
+    _chartDataCacheTime.clear();
+    print('🧹 Cache limpiada');
+  }
+
+  /// Verificar si la cache es válida
+  bool _isCacheValid(DateTime? cacheTime, Duration duration) {
+    if (cacheTime == null) return false;
+    return DateTime.now().difference(cacheTime) < duration;
+  }
 
   /// Conectar al backend
   Future<void> connect() async {
@@ -136,8 +162,33 @@ class DatabaseService {
     String? tipoFilter,
     String? severidadFilter,
     String edificio = 'A',
+    bool forceRefresh = false,
   }) async {
     try {
+      // Verificar cache si no se fuerza la actualización
+      if (!forceRefresh &&
+          _isCacheValid(_alertsCacheTime, _alertsCacheDuration) &&
+          _alertsCache != null) {
+        print('📦 Usando cache de alertas');
+        var alerts = _alertsCache!;
+
+        // Aplicar filtros a la cache
+        if (pisoFilter != null &&
+            pisoFilter.isNotEmpty &&
+            pisoFilter != 'Todos') {
+          alerts = alerts.where((a) => a.piso == pisoFilter).toList();
+        }
+        if (severidadFilter != null && severidadFilter.isNotEmpty) {
+          final normalizedFilter = _normalizeSeveridad(severidadFilter);
+          alerts = alerts
+              .where(
+                  (a) => _normalizeSeveridad(a.severidad) == normalizedFilter)
+              .toList();
+        }
+
+        return alerts;
+      }
+
       // Construir URL con parámetros
       String url = '$_baseUrl/alerts/?edificio=$edificio&solo_activas=true';
 
@@ -152,7 +203,6 @@ class DatabaseService {
       }
 
       print('📥 Obteniendo alertas desde: $url');
-      print('⏱️ Timeout configurado: $_timeout');
 
       final response = await http
           .get(
@@ -162,17 +212,18 @@ class DatabaseService {
         _timeout,
         onTimeout: () {
           print('⏰ Timeout alcanzado después de $_timeout');
-          print('💡 Verifica que:');
-          print('   1. El backend esté corriendo en $_baseUrl');
-          print('   2. Tu dispositivo esté en la misma red WiFi');
-          print('   3. El firewall permita conexiones al puerto 8000');
+          // Si hay cache disponible, usarla aunque esté expirada
+          if (_alertsCache != null) {
+            print('📦 Usando cache expirada por timeout');
+            return http.Response(jsonEncode([]), 200);
+          }
           throw Exception('Timeout: No se pudo conectar al backend');
         },
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        final alerts = data.map((alert) {
+        var alerts = data.map((alert) {
           return AlertModel(
             timestamp: DateTime.parse(alert['timestamp']),
             piso: 'Piso ${alert['piso']}',
@@ -182,10 +233,41 @@ class DatabaseService {
           );
         }).toList();
 
+        // Guardar en cache
+        _alertsCache = alerts;
+        _alertsCacheTime = DateTime.now();
+        print('💾 Alertas guardadas en cache');
+
+        // Filtrar por severidad si se especificó
+        if (severidadFilter != null && severidadFilter.isNotEmpty) {
+          print('🔍 Aplicando filtro de severidad: "$severidadFilter"');
+          print('🔍 Alertas antes de filtrar: ${alerts.length}');
+          print(
+              '🔍 Severidades disponibles: ${alerts.map((a) => a.severidad).toSet().toList()}');
+
+          // Normalizar el filtro de severidad para comparación
+          final normalizedFilter = _normalizeSeveridad(severidadFilter);
+
+          alerts = alerts.where((alert) {
+            final normalizedAlertSeveridad =
+                _normalizeSeveridad(alert.severidad);
+            final match = normalizedAlertSeveridad == normalizedFilter;
+
+            if (alerts.indexOf(alert) < 3) {
+              print(
+                  '🔍 Comparando: "${alert.severidad}" (normalizado: "$normalizedAlertSeveridad") vs filtro "$severidadFilter" (normalizado: "$normalizedFilter") = $match');
+            }
+
+            return match;
+          }).toList();
+
+          print('🔍 Alertas después de filtrar: ${alerts.length}');
+        }
+
         // Ordenar por timestamp descendente
         alerts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
-        print('✅ Obtenidas ${alerts.length} alertas');
+        print('✅ Obtenidas ${alerts.length} alertas (después de filtros)');
         return alerts;
       } else {
         print('❌ Error HTTP ${response.statusCode}: ${response.body}');
@@ -311,8 +393,21 @@ class DatabaseService {
     int? piso,
     String edificio = 'A',
     int limit = 60,
+    bool forceRefresh = false,
   }) async {
     try {
+      // Construir clave de cache
+      final cacheKey = '${edificio}_${piso ?? "all"}_$limit';
+
+      // Verificar cache
+      if (!forceRefresh &&
+          _chartDataCache.containsKey(cacheKey) &&
+          _isCacheValid(
+              _chartDataCacheTime[cacheKey], _chartDataCacheDuration)) {
+        print('📦 Usando cache de datos de gráficas');
+        return _chartDataCache[cacheKey]!;
+      }
+
       String url =
           '$_baseUrl/sensor-data/chart?edificio=$edificio&limit=$limit';
 
@@ -322,12 +417,28 @@ class DatabaseService {
 
       print('📊 Obteniendo datos de gráficas: $url');
 
-      final response = await http.get(Uri.parse(url)).timeout(_timeout);
+      final response = await http.get(Uri.parse(url)).timeout(
+        _timeout,
+        onTimeout: () {
+          // Si hay cache disponible, usarla aunque esté expirada
+          if (_chartDataCache.containsKey(cacheKey)) {
+            print('📦 Usando cache expirada por timeout');
+            return http.Response(jsonEncode(_chartDataCache[cacheKey]), 200);
+          }
+          throw Exception('Timeout');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         print(
             '✅ Datos de gráficas obtenidos: ${data['data']?.length ?? 0} puntos');
+
+        // Guardar en cache
+        _chartDataCache[cacheKey] = data;
+        _chartDataCacheTime[cacheKey] = DateTime.now();
+        print('💾 Datos de gráficas guardados en cache');
+
         return data;
       } else {
         print('❌ Error obteniendo datos de gráficas: ${response.statusCode}');
@@ -335,23 +446,67 @@ class DatabaseService {
       }
     } catch (e) {
       print('❌ Error obteniendo datos de gráficas: $e');
+      // Si hay cache, usarla en caso de error
+      final cacheKey = '${edificio}_${piso ?? "all"}_$limit';
+      if (_chartDataCache.containsKey(cacheKey)) {
+        print('📦 Usando cache por error de red');
+        return _chartDataCache[cacheKey]!;
+      }
       return {'piso': piso ?? 'Todos', 'data': []};
     }
   }
 
   // ========== HELPERS ==========
 
-  /// Mapear severidad del backend (low/medium/high) a UI (OK/Bajo/Medio/Alto/Crítico)
+  /// Mapear severidad del backend a UI
+  /// Backend: low/medium/high → UI: OK/Informativa/Media/Crítica
   String _mapSeveridad(String backendSeveridad) {
     switch (backendSeveridad.toLowerCase()) {
       case 'low':
-        return 'Bajo';
+      case 'bajo':
+        return 'OK';
       case 'medium':
-        return 'Medio';
+      case 'medio':
+        return 'Media';
       case 'high':
-        return 'Crítico';
+      case 'alto':
+        return 'Crítica';
+      case 'informativa':
+      case 'info':
+        return 'Informativa';
       default:
-        return backendSeveridad;
+        // Si viene un valor desconocido, capitalizarlo y devolverlo
+        return backendSeveridad.isEmpty
+            ? 'Desconocido'
+            : backendSeveridad[0].toUpperCase() +
+                backendSeveridad.substring(1).toLowerCase();
+    }
+  }
+
+  /// Normalizar severidad para comparación consistente
+  /// Convierte cualquier variante a una forma estándar
+  String _normalizeSeveridad(String severidad) {
+    switch (severidad.toLowerCase().trim()) {
+      case 'low':
+      case 'bajo':
+      case 'ok':
+        return 'ok';
+      case 'informativa':
+      case 'info':
+      case 'information':
+        return 'informativa';
+      case 'medium':
+      case 'medio':
+      case 'media':
+        return 'media';
+      case 'high':
+      case 'alto':
+      case 'crítica':
+      case 'critica':
+      case 'critical':
+        return 'critica';
+      default:
+        return severidad.toLowerCase().trim();
     }
   }
 
