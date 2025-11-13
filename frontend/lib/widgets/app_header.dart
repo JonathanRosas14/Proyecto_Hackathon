@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AppHeader extends StatelessWidget {
-  const AppHeader({super.key});
+  final String selectedBuilding;
+  final Function(String) onBuildingChanged;
+
+  const AppHeader({
+    super.key,
+    required this.selectedBuilding,
+    required this.onBuildingChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +39,7 @@ class AppHeader extends StatelessWidget {
               const SizedBox(width: 12),
               if (!isNarrow || screenWidth > 400)
                 const Text(
-                  'Smartfloor',
+                  'SmartFloor',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -42,57 +49,74 @@ class AppHeader extends StatelessWidget {
                 ),
             ],
           ),
+          const SizedBox(width: 24),
+          // Building Selector
+          _buildBuildingSelector(screenWidth),
           const Spacer(),
-          // Navigation Links
-          if (screenWidth > 700)
-            Row(
-              children: [
-                _buildNavLink('Vista General'),
-                const SizedBox(width: 36),
-                _buildNavLink('Reportes'),
-                const SizedBox(width: 36),
-                _buildNavLink('Alertas'),
-              ],
-            )
-          else
-            // Menu icon para pantallas pequeñas
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: InkWell(
-                onTap: () {
-                  print('Menú clickeado');
-                },
-                child: const Icon(
-                  Icons.menu,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
-  Widget _buildNavLink(String text) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: () {
-          // Acción al hacer clic
-          print('Navegando a $text');
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            text,
+  Widget _buildBuildingSelector(double screenWidth) {
+    // Lista de edificios disponibles
+    final buildings = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1a5555),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: const Color(0xFF4ecca3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.business,
+            color: Color(0xFF4ecca3),
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          if (screenWidth > 500)
+            const Text(
+              'Edificio:',
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          const SizedBox(width: 8),
+          DropdownButton<String>(
+            value: selectedBuilding,
+            dropdownColor: const Color(0xFF1a5555),
+            underline: Container(),
+            icon: const Icon(
+              Icons.arrow_drop_down,
+              color: Color(0xFF4ecca3),
+            ),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.bold,
             ),
+            items: buildings.map((String building) {
+              return DropdownMenuItem<String>(
+                value: building,
+                child: Text('Edificio $building'),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                onBuildingChanged(newValue);
+              }
+            },
           ),
-        ),
+        ],
       ),
     );
   }

@@ -4,10 +4,12 @@ import 'trend_chart_card.dart';
 import '../services/database_service.dart';
 
 class TrendAnalysisSection extends StatefulWidget {
+  final String selectedBuilding;
   final int? selectedFloor;
 
   const TrendAnalysisSection({
     super.key,
+    required this.selectedBuilding,
     required this.selectedFloor,
   });
 
@@ -48,8 +50,9 @@ class _TrendAnalysisSectionState extends State<TrendAnalysisSection>
   @override
   void didUpdateWidget(TrendAnalysisSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Si cambia el piso seleccionado, recargar datos inmediatamente
-    if (oldWidget.selectedFloor != widget.selectedFloor) {
+    // Si cambia el piso o edificio seleccionado, recargar datos inmediatamente
+    if (oldWidget.selectedFloor != widget.selectedFloor ||
+        oldWidget.selectedBuilding != widget.selectedBuilding) {
       _loadChartData();
     }
   }
@@ -58,7 +61,7 @@ class _TrendAnalysisSectionState extends State<TrendAnalysisSection>
     try {
       final data = await _dbService.getChartData(
         piso: widget.selectedFloor,
-        edificio: 'A',
+        edificio: widget.selectedBuilding,
         limit: 60,
       );
       // Solo actualizar si los datos han cambiado

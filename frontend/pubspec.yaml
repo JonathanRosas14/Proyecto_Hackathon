@@ -1,5 +1,5 @@
 name: eco_monitor
-description: A Flutter implementation of EcoMonitor dashboard
+description: A Flutter implementation of SmartFloor dashboard
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -14,10 +14,29 @@ dependencies:
   intl: ^0.18.1
   http: ^1.1.0
 
+flutter_launcher_icons:
+  # --- Configuración Multiplataforma ---
+  android: true        # Generar íconos para Android
+  ios: true            # Generar íconos para iOS
+  
+  web:
+    generate: true     # Generar íconos para Web
+  
+  windows:
+    generate: true     # Generar íconos para Windows
+  
+  macos:
+    generate: true     # Generar íconos para macOS
+
+  # --- Ruta a tu imagen ---
+  # Asegúrate de que esta ruta coincida con donde guardaste tu imagen
+  image_path: "assets/icon/icon.png"
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true

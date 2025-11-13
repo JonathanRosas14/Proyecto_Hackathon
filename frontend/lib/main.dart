@@ -34,16 +34,16 @@ void main() async {
     print('La app continuará, pero puede haber errores al cargar datos');
   }
 
-  runApp(const EcoMonitorApp());
+  runApp(const SmartFloorApp());
 }
 
-class EcoMonitorApp extends StatelessWidget {
-  const EcoMonitorApp({super.key});
+class SmartFloorApp extends StatelessWidget {
+  const SmartFloorApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Smartfloor',
+      title: 'SmartFloor',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

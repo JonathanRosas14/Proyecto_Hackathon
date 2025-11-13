@@ -5,11 +5,13 @@ import '../models/alert_model.dart';
 import '../services/database_service.dart';
 
 class AlertsTable extends StatefulWidget {
+  final String selectedBuilding;
   final String? pisoFilter;
   final String? severidadFilter;
 
   const AlertsTable({
     super.key,
+    required this.selectedBuilding,
     this.pisoFilter,
     this.severidadFilter,
   });
@@ -50,7 +52,8 @@ class _AlertsTableState extends State<AlertsTable>
   void didUpdateWidget(AlertsTable oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pisoFilter != widget.pisoFilter ||
-        oldWidget.severidadFilter != widget.severidadFilter) {
+        oldWidget.severidadFilter != widget.severidadFilter ||
+        oldWidget.selectedBuilding != widget.selectedBuilding) {
       _loadAlerts();
     }
   }
@@ -63,10 +66,12 @@ class _AlertsTableState extends State<AlertsTable>
 
     try {
       print('📋 AlertsTable: Cargando alertas con filtros:');
+      print('   - Edificio: ${widget.selectedBuilding}');
       print('   - Piso: ${widget.pisoFilter ?? "Todos"}');
       print('   - Severidad: ${widget.severidadFilter ?? "General"}');
 
       final alerts = await _dbService.getAlerts(
+        edificio: widget.selectedBuilding,
         pisoFilter: widget.pisoFilter,
         tipoFilter: null, // No filtramos por tipo
         severidadFilter: widget.severidadFilter,
@@ -75,7 +80,8 @@ class _AlertsTableState extends State<AlertsTable>
       print('📋 AlertsTable: Recibidas ${alerts.length} alertas');
 
       setState(() {
-        _alerts = alerts;
+        // Limitar a las primeras 5 alertas
+        _alerts = alerts.take(5).toList();
         _isLoading = false;
       });
     } catch (e) {
