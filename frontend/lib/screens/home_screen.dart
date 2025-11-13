@@ -122,11 +122,6 @@ class _HomeContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 20),
-          // Building Overview Title
-          _BuildingOverviewTitle(
-            screenWidth: screenWidth,
-            selectedBuilding: selectedBuilding,
-          ),
           // Floor Summary Section
           ValueListenableBuilder<int?>(
             valueListenable: selectedFloor,
@@ -173,33 +168,6 @@ class _HomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 40),
         ],
-      ),
-    );
-  }
-}
-
-/// Widget para el título con el edificio seleccionado
-class _BuildingOverviewTitle extends StatelessWidget {
-  final double screenWidth;
-  final String selectedBuilding;
-
-  const _BuildingOverviewTitle({
-    required this.screenWidth,
-    required this.selectedBuilding,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Text(
-        'Vista General del Edificio $selectedBuilding',
-        style: TextStyle(
-          fontSize: screenWidth > 600 ? 32 : 24,
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          letterSpacing: -0.5,
-        ),
       ),
     );
   }

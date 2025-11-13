@@ -39,7 +39,7 @@ class AppHeader extends StatelessWidget {
               const SizedBox(width: 12),
               if (!isNarrow || screenWidth > 400)
                 const Text(
-                  'Smartfloor',
+                  'SmartFloor',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -53,32 +53,6 @@ class AppHeader extends StatelessWidget {
           // Building Selector
           _buildBuildingSelector(screenWidth),
           const Spacer(),
-          // Navigation Links
-          if (screenWidth > 700)
-            Row(
-              children: [
-                _buildNavLink('Vista General'),
-                const SizedBox(width: 36),
-                _buildNavLink('Reportes'),
-                const SizedBox(width: 36),
-                _buildNavLink('Alertas'),
-              ],
-            )
-          else
-            // Menu icon para pantallas pequeñas
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: InkWell(
-                onTap: () {
-                  print('Menú clickeado');
-                },
-                child: const Icon(
-                  Icons.menu,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -143,29 +117,6 @@ class AppHeader extends StatelessWidget {
             },
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildNavLink(String text) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: InkWell(
-        onTap: () {
-          // Acción al hacer clic
-          print('Navegando a $text');
-        },
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
       ),
     );
   }
